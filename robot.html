@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cardboard Robot Control Panel v2</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body {
+      background: #12141a;
+      color: #f1f5f9;
+      margin: 0;
+      padding: 16px;
+      max-width: 620px;
+      margin-inline: auto;
+    }
+    h1 { font-size: 1.3rem; text-align: center; color: #38bdf8; margin-bottom: 4px; }
+    p.sub { text-align: center; font-size: 0.85rem; color: #94a3b8; margin-top: 0; }
+    .card {
+      background: #1e222d;
+      border: 1px solid #2e3446;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: 1rem;
+      margin-top: 0;
+      color: #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Buttons & Grids */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.08s ease, opacity 0.2s;
+    }
+    button:active { transform: scale(0.96); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-clip { background: #2563eb; color: white; }
+    .btn-sfx { background: #0d9488; color: white; }
+    .btn-stop { background: #ef4444; color: white; padding: 6px 12px; font-size: 0.8rem; }
+
+    /* Recorder Styles */
+    .rec-controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .btn-rec { background: #e11d48; color: white; flex: 1; }
+    .btn-rec.recording { animation: pulse 1.2s infinite; background: #be123c; }
+    .btn-rec-stop { background: #475569; color: white; flex: 1; }
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
+    .recorded-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0f1117;
+      padding: 8px 10px;
+      border-radius: 8px;
+      margin-top: 8px;
+      border: 1px solid #334155;
+      gap: 8px;
+    }
+    .recorded-item span { font-size: 0.9rem; font-weight: 500; flex: 1; }
+    .btn-mini-play { background: #3b82f6; color: white; padding: 6px 12px; font-size: 0.8rem; }
+    .btn-mini-del { background: #334155; color: #f87171; padding: 6px 10px; font-size: 0.8rem; }
+
+    /* Voice Preset Pills */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .btn-preset {
+      background: #272d3d;
+      color: #cbd5e1;
+      border: 1px solid #3b4254;
+      padding: 8px;
+      font-size: 0.82rem;
+    }
+    .btn-preset.active {
+      background: #0284c7;
+      color: white;
+      border-color: #38bdf8;
+    }
+
+    /* Live TTS Section */
+    textarea {
+      width: 100%;
+      height: 80px;
+      background: #0f1117;
+      color: #fff;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 1rem;
+      resize: none;
+      margin-bottom: 10px;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+      font-size: 0.85rem;
+    }
+    select, input[type="range"] { width: 100%; margin-top: 4px; }
+    select {
+      background: #0f1117;
+      color: white;
+      border: 1px solid #334155;
+      padding: 6px;
+      border-radius: 6px;
+    }
+    .btn-speak {
+      width: 100%;
+      background: #22c55e;
+      color: #052e16;
+      font-size: 1.05rem;
+      padding: 14px;
+    }
+    .quick-phrases {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .chip {
+      background: #334155;
+      color: #e2e8f0;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      border-radius: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🤖 Robot Voice Controller</h1>
+  <p class="sub">Connect Bluetooth speaker first • Record, Play, or Type Live</p>
+
+  <!-- 1. VOICE RECORDER -->
+  <div class="card">
+    <h2>🎙️ Quick Voice Recorder</h2>
+    <div class="rec-controls">
+      <button id="recBtn" class="btn-rec" onclick="startRecording()">● Record Voice</button>
+      <button id="stopRecBtn" class="btn-rec-stop" onclick="stopRecording()" disabled>⏹ Stop & Add</button>
+    </div>
+    <div id="recordedList"></div>
+  </div>
+
+  <!-- 2. PRE-RECORDED SOUNDBOARD -->
+  <div class="card">
+    <h2>
+      <span>🎵 Soundboard (MP3 Files)</span>
+      <button class="btn-stop" onclick="stopAllAudio()">⏹ Stop Audio</button>
+    </h2>
+    <div class="grid">
+      <button class="btn-sfx" onclick="playClip('beep.mp3')">⚡ Beep-Boop</button>
+      <button class="btn-clip" onclick="playClip('intro.mp3')">👋 Intro Greeting</button>
+      <button class="btn-clip" onclick="playClip('explain.mp3')">📖 Main Explanation</button>
+      <button class="btn-clip" onclick="playClip('bye.mp3')">🎉 Thank You / Bye</button>
+    </div>
+  </div>
+
+  <!-- 3. LIVE TYPE-TO-SPEAK WITH MALE/FEMALE PRESETS -->
+  <div class="card">
+    <h2>💬 Live Type & Speak</h2>
+
+    <!-- Male & Female Quick Presets -->
+    <div class="preset-grid">
+      <button class="btn-preset active" id="pre-male-bot" onclick="applyPreset('male', 0.8, 0.92, this)">👨 Male: Deep Robot</button>
+      <button class="btn-preset" id="pre-male-friendly" onclick="applyPreset('male', 1.0, 1.0, this)">🧑 Male: Friendly</button>
+      <button class="btn-preset" id="pre-female-ai" onclick="applyPreset('female', 1.05, 0.98, this)">👩 Female: AI Assistant</button>
+      <button class="btn-preset" id="pre-female-bright" onclick="applyPreset('female', 1.2, 1.02, this)">👧 Female: Cheerful</button>
+    </div>
+
+    <textarea id="ttsText" placeholder="Type anything for the robot to say live..."></textarea>
+    
+    <div class="controls">
+      <div>
+        <label>Device Voice:</label>
+        <select id="voiceSelect"></select>
+      </div>
+      <div>
+        <label>Pitch: <span id="pitchVal">0.8</span></label>
+        <input type="range" id="pitch" min="0.5" max="1.5" step="0.05" value="0.8"
+               oninput="document.getElementById('pitchVal').innerText = this.value">
+      </div>
+    </div>
+
+    <button class="btn-speak" onclick="speakLive()">🔊 Speak Through Robot</button>
+
+    <div class="quick-phrases">
+      <button class="chip" onclick="quickSpeak('Yes, that is correct!')">"Yes!"</button>
+      <button class="chip" onclick="quickSpeak('Hold on, let me calculate that.')">"Calculating..."</button>
+      <button class="chip" onclick="quickSpeak('Hello! Nice to meet you.')">"Nice to meet you"</button>
+      <button class="chip" onclick="quickSpeak('Haha, good question!')">"Good question!"</button>
+    </div>
+  </div>
+
+  <script>
+    let currentAudio = null;
+    let currentRate = 0.92;
+
+    // ==========================================
+    // 1. VOICE RECORDER (MediaRecorder API)
+    // ==========================================
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recCount = 1;
+
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(audioChunks, { type: "audio/webm" });
+          const audioUrl = URL.createObjectURL(blob);
+          const label = prompt("Name this voice clip:", "Custom Clip " + recCount++) || ("Clip " + recCount);
+          addRecordedButton(label, audioUrl);
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        document.getElementById("recBtn").disabled = true;
+        document.getElementById("recBtn").classList.add("recording");
+        document.getElementById("recBtn").innerText = "● Recording...";
+        document.getElementById("stopRecBtn").disabled = false;
+      } catch (err) {
+        alert("Microphone access denied or blocked. Make sure you allow mic permissions in your browser!");
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+        document.getElementById("recBtn").disabled = false;
+        document.getElementById("recBtn").classList.remove("recording");
+        document.getElementById("recBtn").innerText = "● Record Voice";
+        document.getElementById("stopRecBtn").disabled = true;
+      }
+    }
+
+    function addRecordedButton(name, url) {
+      const list = document.getElementById("recordedList");
+      const item = document.createElement("div");
+      item.className = "recorded-item";
+      item.innerHTML = `
+        <span>🎤 ${name}</span>
+        <button class="btn-mini-play" onclick="playUrl('${url}')">▶ Play</button>
+        <button class="btn-mini-del" onclick="this.parentElement.remove()">✕</button>
+      `;
+      list.appendChild(item);
+    }
+
+    function playUrl(url) {
+      stopAllAudio();
+      currentAudio = new Audio(url);
+      currentAudio.play();
+    }
+
+    // ==========================================
+    // 2. PRE-RECORDED SOUNDBOARD
+    // ==========================================
+    function playClip(filename) {
+      stopAllAudio();
+      currentAudio = new Audio(filename);
+      currentAudio.play().catch(() => {
+        alert("Could not find '" + filename + "'. Make sure the MP3 is in the same folder as this HTML file!");
+      });
+    }
+
+    function stopAllAudio() {
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+      window.speechSynthesis.cancel();
+    }
+
+    // ==========================================
+    // 3. LIVE TTS & MALE/FEMALE VOICE PRESETS
+    // ==========================================
+    const voiceSelect = document.getElementById("voiceSelect");
+    let availableVoices = [];
+
+    function loadVoices() {
+      availableVoices = window.speechSynthesis.getVoices();
+      voiceSelect.innerHTML = "";
+      availableVoices.forEach((voice, index) => {
+        const option = document.createElement("option");
+        option.value = index;
+        option.textContent = `${voice.name} (${voice.lang})`;
+        voiceSelect.appendChild(option);
+      });
+    }
+
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    loadVoices();
+
+    // Automatically match common Male / Female voice names across Android, iOS, Windows & Chrome
+    function applyPreset(gender, pitch, rate, btnElement) {
+      document.querySelectorAll(".btn-preset").forEach(b => b.classList.remove("active"));
+      btnElement.classList.add("active");
+
+      document.getElementById("pitch").value = pitch;
+      document.getElementById("pitchVal").innerText = pitch;
+      currentRate = rate;
+
+      if (availableVoices.length === 0) return;
+
+      const femaleKeywords = ["female", "zira", "samantha", "victoria", "karen", "moira", "tessa", "veena", "google uk english female", "aria", "jenny", "sara"];
+      const maleKeywords = ["male", "david", "mark", "daniel", "alex", "fred", "rishi", "google uk english male", "guy", "christopher", "roger"];
+
+      const keywords = gender === "female" ? femaleKeywords : maleKeywords;
+
+      let matchIndex = availableVoices.findIndex(v =>
+        keywords.some(kw => v.name.toLowerCase().includes(kw))
+      );
+
+      // Fallback if device uses generic labels (like Android's "en-us-x-...")
+      if (matchIndex === -1 && availableVoices.length > 1) {
+        matchIndex = gender === "female" ? 1 : 0;
+      }
+
+      if (matchIndex !== -1) {
+        voiceSelect.value = matchIndex;
+      }
+    }
+
+    function speakLive() {
+      const text = document.getElementById("ttsText").value.trim();
+      if (!text) return;
+
+      stopAllAudio();
+      const utterance = new SpeechSynthesisUtterance(text);
+      if (availableVoices[voiceSelect.value]) {
+        utterance.voice = availableVoices[voiceSelect.value];
+      }
+      utterance.pitch = parseFloat(document.getElementById("pitch").value);
+      utterance.rate = currentRate;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function quickSpeak(phrase) {
+      document.getElementById("ttsText").value = phrase;
+      speakLive();
+    }
+  </script>
+</body>
+</html>
